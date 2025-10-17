@@ -46,7 +46,7 @@ if st.button("Einheit speichern"):
     st.success(f"✅ Einheit gespeichert! Score: {score}")
 
 # 📊 Score-Auswertung – Summe / 28
-st.subheader("📈 Fitness Score der letzten 28 Tage (Summe ÷ 28)")
+st.subheader("📈 Fitness Score der letzten 28 Tage")
 
 if not df.empty:
     cutoff = datetime.today() - timedelta(days=28)
