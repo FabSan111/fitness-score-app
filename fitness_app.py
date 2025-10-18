@@ -35,8 +35,11 @@ else:
     wert = st.number_input("Dauer der Einheit in Minuten", min_value=0, step=1)
 kommentar = st.text_input("Kommentar (optional)")
 
-if st.button("Einheit speichern"):
+# 🔹 Nur ein Button zum Speichern
+if st.button("Einheit speichern", key="save_unit"):
     score = wert if kategorie == "Ausdauer" else wert * 5
+
+    # Neue Zeile hinzufügen
     new_row = pd.DataFrame([{
         "Datum": datum,
         "Kategorie": kategorie,
@@ -44,8 +47,12 @@ if st.button("Einheit speichern"):
         "Score": score,
         "Kommentar": kommentar
     }])
+
     df = pd.concat([df, new_row], ignore_index=True)
+
+    # Daten in Google Sheet speichern
     set_with_dataframe(sheet, df)
+
     st.success(f"✅ Einheit gespeichert! Score: {score}")
 
 # 📊 Score-Berechnung
@@ -74,13 +81,3 @@ if not df.empty:
     st.dataframe(df.sort_values(by="Datum", ascending=False))
 else:
     st.info("Noch keine Einträge vorhanden.")
-
-if st.button("Einheit speichern"):
-    score = wert if kategorie == "Ausdauer" else wert * 5
-    # In Google Sheet direkt anhängen
-    sheet.append_row([str(datum), kategorie, wert, score, kommentar])
-    st.success(f"✅ Einheit gespeichert! Score: {score}")
-
-    # df aktualisieren, um direkt neuen Score zu sehen
-    df = get_as_dataframe(sheet, evaluate_formulas=True).dropna(how="all")
-    df["Datum"] = pd.to_datetime(df["Datum"], errors="coerce")
