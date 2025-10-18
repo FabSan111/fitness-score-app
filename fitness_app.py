@@ -13,7 +13,7 @@ credentials = ServiceAccountCredentials.from_json_keyfile_dict(
 client = gspread.authorize(credentials)
 
 # 👉 Hier deine eigene SHEET_ID eintragen
-SHEET_ID = "19xHRPMONVLlevF6uMhc5r3SCc8-ba_6bV0Y3L9Fpv3w/edit?usp=drivesdk"
+SHEET_ID = "19xHRPMONVLlevF6uMhc5r3SCc8-ba_6bV0Y3L9Fpv3w"
 sheet = client.open_by_key(SHEET_ID).sheet1
 
 # Daten laden
