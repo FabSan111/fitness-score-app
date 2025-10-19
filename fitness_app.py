@@ -95,4 +95,31 @@ if not df.empty:
 
     # Gesamtscore berechnen
     daily_scores["Gesamt"] = (
-        daily_scores["Aus
+        daily_scores["Ausdauer"] + daily_scores["Kraft"] + daily_scores["Beweglichkeit"]
+    ) / 3
+
+    # Fehlende Tage auffüllen
+    all_days = pd.date_range(cutoff, datetime.today())
+    daily_scores = daily_scores.reindex(all_days, fill_value=0)
+
+    # 📈 Liniendiagramm
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(daily_scores.index, daily_scores["Gesamt"], color="black", label="Gesamt")
+    ax.plot(daily_scores.index, daily_scores["Ausdauer"], color="blue", label="Ausdauer")
+    ax.plot(daily_scores.index, daily_scores["Kraft"], color="red", label="Kraft")
+    ax.plot(daily_scores.index, daily_scores["Beweglichkeit"], color="green", label="Beweglichkeit")
+
+    ax.set_title("Scoreentwicklung (letzte 28 Tage)")
+    ax.set_xlabel("Datum")
+    ax.set_ylabel("Score")
+    ax.legend()
+    ax.grid(True)
+    fig.autofmt_xdate()
+
+    st.pyplot(fig)
+
+    # 📜 Historie
+    st.subheader("📝 Trainingshistorie")
+    st.dataframe(df.sort_values(by="Datum", ascending=False))
+else:
+    st.info("Noch keine Einträge vorhanden.")
