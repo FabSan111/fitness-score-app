@@ -26,6 +26,7 @@ df = get_as_dataframe(sheet, evaluate_formulas=True).dropna(how="all")
 if df.empty:
     df = pd.DataFrame(columns=["Datum", "Kategorie", "Wert", "Score", "Kommentar"])
 else:
+    # Datum bereinigen und auf Tagesebene bringen
     df["Datum"] = pd.to_datetime(df["Datum"], errors="coerce").dt.normalize()
     df["Kategorie"] = df["Kategorie"].astype(str).str.strip().str.capitalize()
 
@@ -64,7 +65,7 @@ if st.button("Einheit speichern", key="save_unit"):
 # ===============================
 st.subheader("📈 Fitness Score der letzten 28 Tage")
 if not df.empty:
-    cutoff = datetime.today().normalize() - timedelta(days=28)
+    cutoff = pd.to_datetime(datetime.today()).normalize() - timedelta(days=28)
     df_28 = df[df["Datum"] >= cutoff]
 
     ausdauer_sum = df_28[df_28["Kategorie"] == "Ausdauer"]["Score"].sum()
@@ -91,18 +92,22 @@ if not df.empty:
         .unstack(fill_value=0)
     )
 
-    daily_scores["Gesamt"] = daily_scores.sum(axis=1) / 3
-    all_days = pd.date_range(cutoff, datetime.today().normalize())
+    # Fehlende Kategorien auffüllen (damit Linien nicht unterbrochen werden)
+    for cat in ["Ausdauer", "Kraft", "Beweglichkeit"]:
+        if cat not in daily_scores.columns:
+            daily_scores[cat] = 0
+
+    daily_scores["Gesamt"] = daily_scores[["Ausdauer", "Kraft", "Beweglichkeit"]].sum(axis=1) / 3
+
+    # Sicherstellen, dass jeder Tag der letzten 28 Tage vertreten ist
+    all_days = pd.date_range(cutoff, pd.to_datetime(datetime.today()).normalize())
     daily_scores = daily_scores.reindex(all_days, fill_value=0)
     daily_scores.index.name = "Datum"
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    if "Ausdauer" in daily_scores:
-        ax.plot(daily_scores.index, daily_scores["Ausdauer"], label="Ausdauer", color="blue")
-    if "Kraft" in daily_scores:
-        ax.plot(daily_scores.index, daily_scores["Kraft"], label="Kraft", color="red")
-    if "Beweglichkeit" in daily_scores:
-        ax.plot(daily_scores.index, daily_scores["Beweglichkeit"], label="Beweglichkeit", color="green")
+    ax.plot(daily_scores.index, daily_scores["Ausdauer"], label="Ausdauer", color="blue")
+    ax.plot(daily_scores.index, daily_scores["Kraft"], label="Kraft", color="red")
+    ax.plot(daily_scores.index, daily_scores["Beweglichkeit"], label="Beweglichkeit", color="green")
     ax.plot(daily_scores.index, daily_scores["Gesamt"], label="Gesamt", color="black", linewidth=2)
 
     ax.set_title("📊 Scoreentwicklung der letzten 28 Tage")
