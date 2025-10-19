@@ -15,7 +15,7 @@ credentials = ServiceAccountCredentials.from_json_keyfile_dict(
 )
 client = gspread.authorize(credentials)
 
-# 👉 Deine eigene SHEET_ID hier eintragen
+# 👉 Deine eigene SHEET_ID eintragen
 SHEET_ID = "19xHRPMONVLlevF6uMhc5r3SCc8-ba_6bV0Y3L9Fpv3w"
 sheet = client.open_by_key(SHEET_ID).sheet1
 
@@ -26,13 +26,8 @@ df = get_as_dataframe(sheet, evaluate_formulas=True).dropna(how="all")
 if df.empty:
     df = pd.DataFrame(columns=["Datum", "Kategorie", "Wert", "Score", "Kommentar"])
 else:
-    # Datum bereinigen und auf Tagesebene bringen
     df["Datum"] = pd.to_datetime(df["Datum"], errors="coerce").dt.normalize()
-    df["Kategorie"] = df["Kategorie"].astype(str).str.strip().str.capitalize()
 
-# ===============================
-# 🖥️ Streamlit Setup
-# ===============================
 st.set_page_config(page_title="🏋️ Fitness Score Tracker", page_icon="💪")
 st.title("🏃‍♂️ Fitness Score Tracker")
 
@@ -41,10 +36,12 @@ st.title("🏃‍♂️ Fitness Score Tracker")
 # ===============================
 datum = st.date_input("Datum", datetime.today())
 kategorie = st.selectbox("Kategorie", ["Ausdauer", "Kraft", "Beweglichkeit"])
+
 if kategorie == "Ausdauer":
     wert = st.number_input("Intensitätswert", min_value=0, step=1)
 else:
     wert = st.number_input("Dauer der Einheit in Minuten", min_value=0, step=1)
+
 kommentar = st.text_input("Kommentar (optional)")
 
 if st.button("Einheit speichern", key="save_unit"):
@@ -61,7 +58,7 @@ if st.button("Einheit speichern", key="save_unit"):
     st.success(f"✅ Einheit gespeichert! Score: {score}")
 
 # ===============================
-# 📊 Score-Berechnung
+# 📊 Score-Berechnung letzte 28 Tage
 # ===============================
 st.subheader("📈 Fitness Score der letzten 28 Tage")
 if not df.empty:
@@ -84,35 +81,35 @@ if not df.empty:
     col4.metric("Gesamt", f"{gesamt_score:.1f}")
 
     # ===============================
-    # 📉 Liniendiagramm
+    # 📉 Liniendiagramm: 28-Tage-Durchschnitts-Entwicklung
     # ===============================
-    daily_scores = (
-        df_28.groupby(["Datum", "Kategorie"])["Score"]
+    all_days = pd.date_range(cutoff, pd.to_datetime(datetime.today()).normalize())
+    daily_raw = (
+        df.groupby(["Datum", "Kategorie"])["Score"]
         .sum()
         .unstack(fill_value=0)
+        .reindex(all_days, fill_value=0)
     )
 
-    # Fehlende Kategorien auffüllen (damit Linien nicht unterbrochen werden)
+    # Fehlende Kategorien hinzufügen
     for cat in ["Ausdauer", "Kraft", "Beweglichkeit"]:
-        if cat not in daily_scores.columns:
-            daily_scores[cat] = 0
+        if cat not in daily_raw.columns:
+            daily_raw[cat] = 0
 
-    daily_scores["Gesamt"] = daily_scores[["Ausdauer", "Kraft", "Beweglichkeit"]].sum(axis=1) / 3
+    # Gleitender 28-Tage-Durchschnitt
+    rolling_scores = daily_raw.rolling(window=28, min_periods=1).sum() / 28
+    rolling_scores["Gesamt"] = rolling_scores[["Ausdauer", "Kraft", "Beweglichkeit"]].sum(axis=1) / 3
 
-    # Sicherstellen, dass jeder Tag der letzten 28 Tage vertreten ist
-    all_days = pd.date_range(cutoff, pd.to_datetime(datetime.today()).normalize())
-    daily_scores = daily_scores.reindex(all_days, fill_value=0)
-    daily_scores.index.name = "Datum"
-
+    # Diagramm zeichnen
     fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(daily_scores.index, daily_scores["Ausdauer"], label="Ausdauer", color="blue")
-    ax.plot(daily_scores.index, daily_scores["Kraft"], label="Kraft", color="red")
-    ax.plot(daily_scores.index, daily_scores["Beweglichkeit"], label="Beweglichkeit", color="green")
-    ax.plot(daily_scores.index, daily_scores["Gesamt"], label="Gesamt", color="black", linewidth=2)
+    ax.plot(rolling_scores.index, rolling_scores["Ausdauer"], label="Ausdauer", color="blue")
+    ax.plot(rolling_scores.index, rolling_scores["Kraft"], label="Kraft", color="red")
+    ax.plot(rolling_scores.index, rolling_scores["Beweglichkeit"], label="Beweglichkeit", color="green")
+    ax.plot(rolling_scores.index, rolling_scores["Gesamt"], label="Gesamt", color="black", linewidth=2)
 
-    ax.set_title("📊 Scoreentwicklung der letzten 28 Tage")
+    ax.set_title("📈 Entwicklung des 28-Tage-Durchschnitts")
     ax.set_xlabel("Datum")
-    ax.set_ylabel("Score")
+    ax.set_ylabel("28-Tage-Durchschnitts-Score")
     ax.legend()
     ax.grid(True)
     fig.autofmt_xdate()
@@ -123,6 +120,5 @@ if not df.empty:
     # ===============================
     st.subheader("📝 Trainingshistorie")
     st.dataframe(df.sort_values(by="Datum", ascending=False))
-
 else:
     st.info("Noch keine Einträge vorhanden.")
