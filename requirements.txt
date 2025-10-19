@@ -1,5 +1,6 @@
 streamlit
 pandas
 gspread
-gspread_dataframe
+gspread-dataframe
 oauth2client
+matplotlib
