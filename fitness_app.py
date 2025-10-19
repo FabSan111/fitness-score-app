@@ -37,7 +37,7 @@ kommentar = st.text_input("Kommentar (optional)")
 
 # 🔹 Nur ein Button zum Speichern
 if st.button("Einheit speichern", key="save_unit"):
-    score = wert if kategorie == "Ausdauer" else wert * 5
+    score = wert if kategorie == "Ausdauer" else wert * 10
 
     # Neue Zeile hinzufügen
     new_row = pd.DataFrame([{
