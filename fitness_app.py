@@ -61,8 +61,11 @@ if st.button("Einheit speichern", key="save_unit"):
 # 📊 Score-Berechnung letzte 28 Tage
 # ===============================
 st.subheader("📈 Fitness Score der letzten 28 Tage")
+
 if not df.empty:
-    cutoff = pd.to_datetime(datetime.today()).normalize() - timedelta(days=28)
+    today = pd.to_datetime(datetime.today()).normalize()
+    cutoff = today - timedelta(days=28)
+
     df_28 = df[df["Datum"] >= cutoff]
 
     ausdauer_sum = df_28[df_28["Kategorie"] == "Ausdauer"]["Score"].sum()
@@ -81,9 +84,15 @@ if not df.empty:
     col4.metric("Gesamt", f"{gesamt_score:.1f}")
 
     # ===============================
-    # 📉 Liniendiagramm: 28-Tage-Durchschnitts-Entwicklung
+    # 📉 KORRIGIERTES Liniendiagramm: 28-Tage-Durchschnitt
     # ===============================
-    all_days = pd.date_range(cutoff, pd.to_datetime(datetime.today()).normalize())
+
+    # → Erweiterung um 27 Tage, damit rolling(window=28) korrekt funktioniert
+    cutoff_extended = cutoff - timedelta(days=27)
+
+    # Vollständige Zeitreihe bauen
+    all_days = pd.date_range(cutoff_extended, today)
+
     daily_raw = (
         df.groupby(["Datum", "Kategorie"])["Score"]
         .sum()
@@ -91,16 +100,22 @@ if not df.empty:
         .reindex(all_days, fill_value=0)
     )
 
-    # Fehlende Kategorien hinzufügen
+    # Fehlende Kategorien sicherstellen
     for cat in ["Ausdauer", "Kraft", "Beweglichkeit"]:
         if cat not in daily_raw.columns:
             daily_raw[cat] = 0
 
-    # Gleitender 28-Tage-Durchschnitt
+    # Rolling über 28 Tage (korrekter rückblickender Durchschnitt)
     rolling_scores = daily_raw.rolling(window=28, min_periods=1).sum() / 28
-    rolling_scores["Gesamt"] = rolling_scores[["Ausdauer", "Kraft", "Beweglichkeit"]].sum(axis=1) / 3
 
-    # Diagramm zeichnen
+    rolling_scores["Gesamt"] = (
+        rolling_scores[["Ausdauer", "Kraft", "Beweglichkeit"]].sum(axis=1) / 3
+    )
+
+    # Zurück auf sichtbaren Zeitraum beschränken
+    rolling_scores = rolling_scores[rolling_scores.index >= cutoff]
+
+    # Diagramm
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.plot(rolling_scores.index, rolling_scores["Ausdauer"], label="Ausdauer", color="blue")
     ax.plot(rolling_scores.index, rolling_scores["Kraft"], label="Kraft", color="red")
